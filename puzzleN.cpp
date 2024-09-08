@@ -15,7 +15,7 @@ struct Node {
     int g; // g(n)
     Node* next;
 
-    Node(int n, vector<int>& numbers, int w) : id(n), data(numbers), h(w), next(nullptr) {}
+    Node(int n, vector<int>& numbers, int weight, int cost) : id(n), data(numbers), h(weight), g(cost), next(nullptr) {}
 };
 
 struct Priority {
@@ -63,10 +63,11 @@ class PuzzleN {
 
             //Creation of n0
             vCounter = 1;
-            int curr = 0;
-            cout << numbers[1];
-            vertices.emplace_back(0, numbers, heuristicF(numbers));
+            curr = 0; 
+            vertices.emplace_back(0, numbers, heuristicF(numbers), 0);
+            pq.push(make_pair(0, vertices.back().h));
             printNode(vertices[0]);
+            printBoard();
         }    
 
         void terminalState(int size) {
@@ -99,27 +100,27 @@ class PuzzleN {
             vector<size_t> newVertices;
             int parent = vCounter-1;
             for (const auto& dir : directions) {
-                cout << "Trying direction: " << dir << endl;
+                //cout << "Trying direction: " << dir << endl;
                 if (move(dir)){
                     vector<int> temp = numbers;
                     newSpace = (newRow * side) + newCol;
                     //cout << "newSpace: " << newSpace << ", newRow: " << newRow << ", newCol: " << newCol << endl;
                     swap(temp[emptySpace], temp[newSpace]);
-                    vertices.emplace_back(vCounter, temp, heuristicF(temp));
+                    vertices.emplace_back(vCounter, temp, heuristicF(temp), vertices[curr].g + 1);
                     if (adj.size() <= vCounter) {
                         adj.resize(vCounter + 1);
                     }
                     newVertices.push_back(vCounter);
                     if (!newVertices.empty()) {
-                        cout << "Adding edge..."; 
+                        //cout << "Adding edge..."; 
                         addEdge(parent, newVertices.back());  
-                        pq.push(make_pair(vCounter, vertices.back().h));
+                        pq.push(make_pair(vCounter, vertices.back().h + vertices.back().g));
                     }
-                    printNode(vertices.back());
+                    //printNode(vertices.back());
                     vCounter++;
 
                 } else {
-                    cout << "Move failed" << endl; 
+                    //cout << "Move failed" << endl; 
                 }
             }
         }
@@ -155,8 +156,7 @@ class PuzzleN {
         }
 
         void choice(){
-
-            cout << "(" << pq.top().first << ", " << pq.top().second << ") " << endl;
+            //cout << "(" << pq.top().first << ", " << pq.top().second << ") " << endl;
 
             int child = pq.top().first;
             visited[child] = true;
@@ -185,7 +185,6 @@ class PuzzleN {
                 board[i] = temp;
             }
             emptySpace = emptyCol + side*emptyRow;
-            printBoard();
         }
 
         void addEdge(int v1, int v2) {
@@ -195,7 +194,24 @@ class PuzzleN {
             }
             adj[v1].push_back(v2);
             adj[v2].push_back(v1);
-            cout << "Edge added successfully" << endl;
+            //cout << "Edge added successfully" << endl;
+        }
+
+        void execute() {
+            int k = 250;
+            //cout << "heuristics: " << vertices[curr].h << endl;
+            //cout << "queue empty? " << !pq.empty() << endl;
+            while(!pq.empty() && vertices[curr].h != 0 && k > 0) {
+                //printBoard();
+                expand();
+                //printAdjacencyList();
+                choice();
+                //printBoard();
+                k--;
+                //cout << "steps: " << k << endl; 
+                }
+            printBoard();
+            cout << "End of program." << endl;
         }
 
         void emptyQueue() {
@@ -208,6 +224,7 @@ class PuzzleN {
         void printNode(const Node& node) {
             cout << "Node num: " << node.id << endl;
             cout << "Node weight: " << node.h << endl;
+            cout << "Node cost: " << node.g << endl;
             cout << "Node data: " << endl;
             for (const int value : node.data) {
                 cout << value << " ";
@@ -280,8 +297,10 @@ class PuzzleN {
 
         void printPath() {
             for (const auto& pair : path) {
-                cout << pair.first << ": " << pair.second << endl;
+                cout << pair.second << " -> ";
             }
+
+            cout << endl;
         }
 
 
@@ -291,12 +310,8 @@ class PuzzleN {
 int main(){
     PuzzleN puzzle(9);
 
-    puzzle.printBoard();
-    //puzzle.printNumbers();
-    puzzle.expand();
-    puzzle.printAdjacencyList();
-    puzzle.choice();
-    puzzle.emptyQueue();
+
+    puzzle.execute();
     puzzle.printPath();
 
     return 0;
