@@ -11,28 +11,37 @@ using namespace std;
 struct Node {
     const int id;
     vector<int> data;
-    const int weight;
+    const int h; // h(n)
+    int g; // g(n)
     Node* next;
 
-    Node(int n, vector<int>& numbers, int w) : id(n), data(numbers), weight(w), next(nullptr) {}
+    Node(int n, vector<int>& numbers, int w) : id(n), data(numbers), h(w), next(nullptr) {}
+};
+
+struct Priority {
+    bool operator()(const pair<int, int>& p1, const pair<int, int>& p2) {
+        return p1.second > p2.second;
+    }
 };
 
 class PuzzleN {
     private: 
         vector<vector<int>> board; //dynamic board
-        int emptyRow, emptyCol, emptySpace, newSpace, side, size, newRow, newCol, boardSize; //important variables
+        int emptyRow, emptyCol, emptySpace, newSpace, side, size, newRow, newCol, boardSize, curr; //important variables
         vector<int> numbers; // Vector of numbers in the actual board
         vector<int> tState; // Vector of numbers Terminal State
+        vector<pair<int, int>> path; //child, curr
+        int edge = 1;
 
         //Graph stuff
         vector<vector<int>> adj; //adj list
         vector<bool> visited; 
-        queue<int> q;
+        priority_queue<pair<int, int>, vector<pair<int, int>>, Priority> pq;
         int vCounter;
         vector<Node> vertices;
 
     public:
-        PuzzleN(int size) {
+        PuzzleN(int size) : adj(size), visited(size) {
             boardSize = size;
             terminalState(size);
             shufflePuzzle();
@@ -54,6 +63,7 @@ class PuzzleN {
 
             //Creation of n0
             vCounter = 1;
+            int curr = 0;
             cout << numbers[1];
             vertices.emplace_back(0, numbers, heuristicF(numbers));
             printNode(vertices[0]);
@@ -87,6 +97,7 @@ class PuzzleN {
         void expand() {
             vector<string> directions = {"up", "down", "left", "right"};
             vector<size_t> newVertices;
+            int parent = vCounter-1;
             for (const auto& dir : directions) {
                 cout << "Trying direction: " << dir << endl;
                 if (move(dir)){
@@ -95,12 +106,18 @@ class PuzzleN {
                     //cout << "newSpace: " << newSpace << ", newRow: " << newRow << ", newCol: " << newCol << endl;
                     swap(temp[emptySpace], temp[newSpace]);
                     vertices.emplace_back(vCounter, temp, heuristicF(temp));
-                    if (!newVertices.empty()) {
-                        addEdge(vCounter, newVertices.back());
+                    if (adj.size() <= vCounter) {
+                        adj.resize(vCounter + 1);
                     }
-                    newVertices.push_back(vertices.size() - 1);
+                    newVertices.push_back(vCounter);
+                    if (!newVertices.empty()) {
+                        cout << "Adding edge..."; 
+                        addEdge(parent, newVertices.back());  
+                        pq.push(make_pair(vCounter, vertices.back().h));
+                    }
                     printNode(vertices.back());
                     vCounter++;
+
                 } else {
                     cout << "Move failed" << endl; 
                 }
@@ -128,39 +145,50 @@ class PuzzleN {
         }
 
         int heuristicF(const vector<int>& v) {
-            int h = v.size();
+            int hn = v.size();
             for (size_t i = 0; i < min(v.size(), tState.size()); ++i) {
                 if (tState[i] == v[i]) {
-                    h--;
+                    hn--;
                 }
             }
-            return h;
+            return hn;
         }
 
-        void bfs(Node* node){
+        void choice(){
 
-            queue<int> q;
+            cout << "(" << pq.top().first << ", " << pq.top().second << ") " << endl;
 
-            visited[node -> id] = true;
-            q.push(node -> id);
+            int child = pq.top().first;
+            visited[child] = true;
 
-            while (!q.empty()) {
+            pq.pop();
 
-                int curr = q.front();
-                q.pop();
-                cout << curr << " ";
+            path.push_back(make_pair(child, curr));
 
-                for (int i : adj[curr]){
-                    if (!visited[i]){
-                        visited[i] = true;
-                        q.push(i);
+            curr = child;
+
+            numbers = vertices[child].data;
+
+            //Create board
+
+            int index = 0;
+            for (int i = 0; i < side; i++) {
+                vector<int> temp;
+                for (int j = 0; j < side; j++) {
+                    temp.push_back(numbers[index]);
+                    if (numbers[index] == 0) {
+                        emptyRow = i;
+                        emptyCol = j;
                     }
+                    index++;
                 }
+                board[i] = temp;
             }
+            emptySpace = emptyCol + side*emptyRow;
+            printBoard();
         }
 
         void addEdge(int v1, int v2) {
-            cout << "Adding edge between " << v1 << " and " << v2 << endl;
             if (v1 >= vertices.size() || v2 >= vertices.size()) {
                 cout << "Error: Vertex index out of bounds" << endl;
                 return;
@@ -170,9 +198,16 @@ class PuzzleN {
             cout << "Edge added successfully" << endl;
         }
 
+        void emptyQueue() {
+            while (!pq.empty()) {
+                cout << "(" << pq.top().first << ", " << pq.top().second << ") ";
+                pq.pop();
+            }
+        }
+
         void printNode(const Node& node) {
-            cout << endl << "Node num: " << node.id << endl;
-            cout << "Node weight: " << node.weight << endl;
+            cout << "Node num: " << node.id << endl;
+            cout << "Node weight: " << node.h << endl;
             cout << "Node data: " << endl;
             for (const int value : node.data) {
                 cout << value << " ";
@@ -232,6 +267,24 @@ class PuzzleN {
                 cout << num << " ";
             }
         }
+
+        void printAdjacencyList() {
+            for (int i = 0; i < adj.size(); ++i) {
+                cout << "Vertex " << i << ": ";
+                for (int j = 0; j < adj[i].size(); ++j) {
+                    cout << adj[i][j] << " ";
+                }
+                cout << endl;
+            }
+        }
+
+        void printPath() {
+            for (const auto& pair : path) {
+                cout << pair.first << ": " << pair.second << endl;
+            }
+        }
+
+
 };
 
 
@@ -241,6 +294,10 @@ int main(){
     puzzle.printBoard();
     //puzzle.printNumbers();
     puzzle.expand();
-    cout << "bu";
+    puzzle.printAdjacencyList();
+    puzzle.choice();
+    puzzle.emptyQueue();
+    puzzle.printPath();
+
     return 0;
 }
