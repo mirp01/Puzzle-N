@@ -180,7 +180,7 @@ class PuzzleN {
             int child = pq.top().first;
             
             while (ht.get(vectorToString(vertices[child].data))) {
-                cout << "Found data in node: " << child << endl;
+                //cout << "Found data in node: " << child << endl;
                 visited[child] = true;
                 pq.pop();
                 child = pq.top().first;
