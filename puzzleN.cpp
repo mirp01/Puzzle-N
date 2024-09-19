@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <vector>
 #include <variant>
 #include <algorithm>
@@ -54,6 +55,9 @@ class PuzzleN {
         int vCounter;
         vector<Node> vertices;
 
+        //Create hash table 
+        HashTable<string, bool, HashFunction> ht; // key, exists, function
+
     public:
         PuzzleN(int size) : adj(size), visited(size) {
             boardSize = size;
@@ -80,6 +84,7 @@ class PuzzleN {
             curr = 0; 
             vertices.emplace_back(0, numbers, heuristicF(numbers), 0);
             pq.push(make_pair(0, vertices.back().h));
+            ht.insert(vectorToString(numbers), true);
             printNode(vertices[0]);
             printBoard();
         }    
@@ -173,15 +178,20 @@ class PuzzleN {
             //cout << "(" << pq.top().first << ", " << pq.top().second << ") " << endl;
 
             int child = pq.top().first;
-            visited[child] = true;
-
-            pq.pop();
+            
+            while (ht.get(vectorToString(vertices[child].data))) {
+                cout << "Found data in node: " << child << endl;
+                visited[child] = true;
+                pq.pop();
+                child = pq.top().first;
+            }
 
             path.push_back(make_pair(child, curr));
 
             curr = child;
 
             numbers = vertices[child].data;
+            ht.insert(vectorToString(numbers), true);
 
             //Create board
 
@@ -233,6 +243,14 @@ class PuzzleN {
                 cout << "(" << pq.top().first << ", " << pq.top().second << ") ";
                 pq.pop();
             }
+        }
+
+        string vectorToString(const vector<int>& v) {
+            string result;
+            for (int num : v) {
+                result += to_string(num);
+            }
+            return result;
         }
 
         void printNode(const Node& node) {

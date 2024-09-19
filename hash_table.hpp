@@ -13,7 +13,7 @@ template<typename K, typename V, typename Hash = hash<K>>
 class HashTable {
     private:
         static const int DEFAULT_BUCKETS = 10;
-        static const double LOAD_FACTOR_THRESHOLD = 0.7;
+        static constexpr double LOAD_FACTOR_THRESHOLD = 0.7;
         vector<list<pair<K, V>>> table;
         int size;
 
