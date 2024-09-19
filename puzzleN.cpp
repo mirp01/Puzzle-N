@@ -5,8 +5,22 @@
 #include <queue>
 #include <random>
 
+#include "hash_table.hpp"
+
 using namespace std;
 
+struct HashFunction {
+    int operator()(const string& s) const {  
+        size_t hash = 0;
+
+        for (char c : s) {
+            int digit = c - '0';
+            hash = hash * 10 + digit;
+        }
+  
+        return hash;
+    }
+};
 
 struct Node {
     const int id;
