@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <queue>
 #include <random>
+#include <cmath>
 
 #include "hash_table.hpp"
 
@@ -13,12 +14,10 @@ using namespace std;
 struct HashFunction {
     int operator()(const string& s) const {  
         size_t hash = 0;
-
         for (char c : s) {
             int digit = c - '0';
             hash = hash * 10 + digit;
         }
-  
         return hash;
     }
 };
@@ -40,238 +39,214 @@ struct Priority {
 };
 
 class PuzzleN {
-    private: 
-        vector<vector<int>> board; //dynamic board
-        int emptyRow, emptyCol, emptySpace, newSpace, side, size, newRow, newCol, boardSize, curr; //important variables
-        vector<int> numbers; // Vector of numbers in the actual board
-        vector<int> tState; // Vector of numbers Terminal State
-        vector<pair<int, int>> path; //child, curr
-        int edge = 1;
+private: 
+    vector<vector<int>> board;
+    int emptyRow, emptyCol, emptySpace, side, boardSize, curr;
+    vector<int> numbers;
+    vector<int> tState;
+    vector<pair<int, int>> path;
+    vector<vector<int>> adj;
+    vector<bool> visited;
+    priority_queue<pair<int, int>, vector<pair<int, int>>, Priority> pq;
+    int vCounter;
+    vector<Node> vertices;
+    HashTable<string, bool, HashFunction> ht;
 
-        //Graph stuff
-        vector<vector<int>> adj; //adj list
-        vector<bool> visited; 
-        priority_queue<pair<int, int>, vector<pair<int, int>>, Priority> pq;
-        int vCounter;
-        vector<Node> vertices;
+public:
+    PuzzleN(int size) : adj(size), visited(size) {
+        boardSize = size;
+        side = sqrt(size);
+        terminalState(size);
+        shufflePuzzle();
+        initializeBoard();
+        initializeFirstNode();
+    }    
 
-        //Create hash table 
-        HashTable<string, bool, HashFunction> ht; // key, exists, function
-
-    public:
-        PuzzleN(int size) : adj(size), visited(size) {
-            boardSize = size;
-            terminalState(size);
-            shufflePuzzle();
-            int index = 0;
-            for (int i = 0; i < side; i++) {
-                vector<int> temp;
-                for (int j = 0; j < side; j++) {
-                    temp.push_back(numbers[index]);
-                    if (numbers[index] == 0) {
-                        emptyRow = i;
-                        emptyCol = j;
-                    }
-                    index++;
-                }
-                board[i] = temp;
-            }
-            emptySpace = emptyCol + side*emptyRow;
-            //cout << emptyRow << emptyCol << emptySpace << endl;
-
-            //Creation of n0
-            vCounter = 1;
-            curr = 0; 
-            vertices.emplace_back(0, numbers, heuristicF(numbers), 0);
-            pq.push(make_pair(0, vertices.back().h));
-            ht.insert(vectorToString(numbers), true);
-            printNode(vertices[0]);
-            printBoard();
-        }    
-
-        void terminalState(int size) {
-            side = sqrt(size);
-            board.resize(side, vector<int>(side));
-            //numbers.resize(size);
-            int num = 0;
-            for (int i = 0; i < side; i++){
-                vector<int> temp;
-                for (int j = 0; j < side; j++){
-                    temp.push_back(num);
-                    numbers.push_back(num);
-                    num++;
-                }
-                board[i] = temp;
-            }
-            tState.resize(size);
-            tState = numbers;
+    void terminalState(int size) {
+        board.resize(side, vector<int>(side));
+        for (int i = 0; i < size; i++) {
+            numbers.push_back(i);
         }
+        tState = numbers;
+    }
 
-        void shufflePuzzle() {
-            random_device rd;
-            mt19937 g(rd());
+    void shufflePuzzle() {
+        random_device rd;
+        mt19937 g(rd());
+        shuffle(numbers.begin(), numbers.end(), g);
+    }
 
-            shuffle(numbers.begin(), numbers.end(), g);
+    void initializeBoard() {
+        int index = 0;
+        for (int i = 0; i < side; i++) {
+            for (int j = 0; j < side; j++) {
+                board[i][j] = numbers[index];
+                if (numbers[index] == 0) {
+                    emptyRow = i;
+                    emptyCol = j;
+                }
+                index++;
+            }
         }
+        emptySpace = emptyCol + side * emptyRow;
+    }
 
-        void expand() {
-            vector<string> directions = {"up", "down", "left", "right"};
-            vector<size_t> newVertices;
-            int parent = vCounter-1;
-            for (const auto& dir : directions) {
-                //cout << "Trying direction: " << dir << endl;
-                if (move(dir)){
-                    vector<int> temp = numbers;
-                    newSpace = (newRow * side) + newCol;
-                    //cout << "newSpace: " << newSpace << ", newRow: " << newRow << ", newCol: " << newCol << endl;
-                    swap(temp[emptySpace], temp[newSpace]);
-                    vertices.emplace_back(vCounter, temp, heuristicF(temp), vertices[curr].g + 1);
-                    if (adj.size() <= vCounter) {
-                        adj.resize(vCounter + 1);
-                    }
-                    newVertices.push_back(vCounter);
-                    if (!newVertices.empty()) {
-                        //cout << "Adding edge..."; 
-                        addEdge(parent, newVertices.back());  
+    void initializeFirstNode() {
+        vCounter = 1;
+        curr = 0;
+        vertices.emplace_back(0, numbers, heuristicF(numbers), 0);
+        pq.push(make_pair(0, vertices.back().h));
+        ht.insert(vectorToString(numbers), true);
+    }
+
+    void expand() {
+        vector<string> directions = {"up", "down", "left", "right"};
+        int parent = curr;
+        for (const auto& dir : directions) {
+            if (isLegalMove(dir)) {
+                vector<int> tempNumbers = numbers;
+                int tempEmptyRow = emptyRow, tempEmptyCol = emptyCol, tempEmptySpace = emptySpace;
+                
+                if (move(dir)) {
+                    string newState = vectorToString(numbers);
+                    if (!ht.get(newState)) {
+                        vertices.emplace_back(vCounter, numbers, heuristicF(numbers), vertices[curr].g + 1);
+                        if (adj.size() <= vCounter) {
+                            adj.resize(vCounter + 1);
+                        }
+                        addEdge(parent, vCounter);
                         pq.push(make_pair(vCounter, vertices.back().h + vertices.back().g));
+                        vCounter++;
+                        ht.insert(newState, true);
                     }
-                    //printNode(vertices.back());
-                    vCounter++;
-
-                } else {
-                    //cout << "Move failed" << endl; 
+                    
+                    // Revert the move
+                    numbers = tempNumbers;
+                    emptyRow = tempEmptyRow;
+                    emptyCol = tempEmptyCol;
+                    emptySpace = tempEmptySpace;
+                    board[emptyRow][emptyCol] = 0;
                 }
             }
         }
+    }
 
-        bool move(string dir) { //checks if move is valid
-            newRow = emptyRow;
-            newCol = emptyCol;
+    bool isLegalMove(const string& dir) const {
+        if (dir == "up" && emptyRow > 0) return true;
+        if (dir == "down" && emptyRow < side - 1) return true;
+        if (dir == "left" && emptyCol > 0) return true;
+        if (dir == "right" && emptyCol < side - 1) return true;
+        return false;
+    }
 
-            if (dir == "up") {
-                newRow--;
-            } else if (dir == "down") {
-                newRow++;
-            } else if (dir == "left") {
-                newCol--;
-            } else if (dir == "right") {
-                newCol++;
+    bool move(string dir) {
+        int newRow = emptyRow, newCol = emptyCol;
+        
+        if (dir == "up") newRow--;
+        else if (dir == "down") newRow++;
+        else if (dir == "left") newCol--;
+        else if (dir == "right") newCol++;
+        else return false;
+
+        int newSpace = newRow * side + newCol;
+        swap(numbers[emptySpace], numbers[newSpace]);
+        
+        board[emptyRow][emptyCol] = numbers[emptySpace];
+        board[newRow][newCol] = numbers[newSpace];
+
+        emptyRow = newRow;
+        emptyCol = newCol;
+        emptySpace = newSpace;
+
+        return true;
+    }
+
+    int heuristicF(const vector<int>& v) {
+        int hn = 0;
+        for (size_t i = 0; i < v.size(); ++i) {
+            if (v[i] != 0 && v[i] != tState[i]) {
+                hn++;
             }
-
-            if (newRow < 0 || newRow >= side || newCol < 0 || newCol >= side) {
-                return false;
-            } 
-            return true;
         }
+        return hn;
+    }
 
-        int heuristicF(const vector<int>& v) {
-            int hn = v.size();
-            for (size_t i = 0; i < min(v.size(), tState.size()); ++i) {
-                if (tState[i] == v[i]) {
-                    hn--;
-                }
-            }
-            return hn;
-        }
-
-        void choice(){
-            //cout << "(" << pq.top().first << ", " << pq.top().second << ") " << endl;
-
+    void choice() {
+        while (!pq.empty()) {
             int child = pq.top().first;
+            pq.pop();
             
-            while (ht.get(vectorToString(vertices[child].data))) {
-                //cout << "Found data in node: " << child << endl;
+            if (!visited[child]) {
                 visited[child] = true;
-                pq.pop();
-                child = pq.top().first;
+                path.push_back(make_pair(child, curr));
+                curr = child;
+                numbers = vertices[child].data;
+                updateBoardFromNumbers();
+                break;
             }
-
-            path.push_back(make_pair(child, curr));
-
-            curr = child;
-
-            numbers = vertices[child].data;
-            ht.insert(vectorToString(numbers), true);
-
-            //Create board
-
-            int index = 0;
-            for (int i = 0; i < side; i++) {
-                vector<int> temp;
-                for (int j = 0; j < side; j++) {
-                    temp.push_back(numbers[index]);
-                    if (numbers[index] == 0) {
-                        emptyRow = i;
-                        emptyCol = j;
-                    }
-                    index++;
-                }
-                board[i] = temp;
-            }
-            emptySpace = emptyCol + side*emptyRow;
         }
+    }
 
-        void addEdge(int v1, int v2) {
-            if (v1 >= vertices.size() || v2 >= vertices.size()) {
-                cout << "Error: Vertex index out of bounds" << endl;
-                return;
-            }
-            adj[v1].push_back(v2);
-            adj[v2].push_back(v1);
-            //cout << "Edge added successfully" << endl;
-        }
-
-        void execute() {
-            int k = 250;
-            //cout << "heuristics: " << vertices[curr].h << endl;
-            //cout << "queue empty? " << !pq.empty() << endl;
-            while(!pq.empty() && vertices[curr].h != 0 && k > 0) {
-                //printBoard();
-                expand();
-                //printAdjacencyList();
-                choice();
-                //printBoard();
-                k--;
-                //cout << "steps: " << k << endl; 
+    void updateBoardFromNumbers() {
+        int index = 0;
+        for (int i = 0; i < side; i++) {
+            for (int j = 0; j < side; j++) {
+                board[i][j] = numbers[index];
+                if (numbers[index] == 0) {
+                    emptyRow = i;
+                    emptyCol = j;
                 }
+                index++;
+            }
+        }
+        emptySpace = emptyCol + side * emptyRow;
+    }
+
+    void addEdge(int v1, int v2) {
+        if (v1 >= adj.size() || v2 >= adj.size()) {
+            cout << "Error: Vertex index out of bounds" << endl;
+            return;
+        }
+        adj[v1].push_back(v2);
+        adj[v2].push_back(v1);
+    }
+
+    void execute() {
+        int maxIterations = 500;
+        int iterations = 0;
+        while (!pq.empty() && vertices[curr].h != 0 && iterations < maxIterations) {
+            cout << "Iteration: " << iterations << ", Node: " << vertices[curr].id << endl;
             printBoard();
-            cout << "End of program." << endl;
+            expand();
+            choice();
+            iterations++;
         }
-
-        void emptyQueue() {
-            while (!pq.empty()) {
-                cout << "(" << pq.top().first << ", " << pq.top().second << ") ";
-                pq.pop();
-            }
+        
+        if (vertices[curr].h == 0) {
+            cout << "Solution found!" << endl;
+        } else {
+            cout << "Solution not found within " << maxIterations << " iterations." << endl;
         }
+        printBoard();
+        printPath();
+    }
 
-        string vectorToString(const vector<int>& v) {
-            string result;
-            for (int num : v) {
-                result += to_string(num);
-            }
-            return result;
+    string vectorToString(const vector<int>& v) {
+        string result;
+        for (int num : v) {
+            result += to_string(num);
         }
+        return result;
+    }
 
-        void printNode(const Node& node) {
-            cout << "Node num: " << node.id << endl;
-            cout << "Node weight: " << node.h << endl;
-            cout << "Node cost: " << node.g << endl;
-            cout << "Node data: " << endl;
-            for (const int value : node.data) {
-                cout << value << " ";
+    void printBoard() {
+        cout << "-";
+        if (side < 4){
+            for (int i = 0; i < side; i++){
+                cout << "----";
             }
             cout << endl;
-        }
-
-        void printBoard() {
-            cout << "-";
-            if (side < 4){
-                for (int i = 0; i < side; i++){
-                    cout << "----";
-                }
-                cout << endl;
-                for (const auto& row : board) {
+            for (const auto& row : board) {
                 cout << "| ";
                 for (int tile : row){
                     if (tile == 0){
@@ -281,16 +256,16 @@ class PuzzleN {
                     }
                 }
                 cout << "\n";
-                }
-                for (int i = 0; i < side; i++){
+            }
+            for (int i = 0; i < side; i++){
                 cout << "----";
-                }
-            } else {
-                for (int i = 0; i < side; i++){
-                    cout << "-----";
-                }
-                cout << endl;
-                for (const auto& row : board) {
+            }
+        } else {
+            for (int i = 0; i < side; i++){
+                cout << "-----";
+            }
+            cout << endl;
+            for (const auto& row : board) {
                 cout << "| ";
                 for (int tile : row){
                     if (tile < 10 && tile != 0){
@@ -302,49 +277,27 @@ class PuzzleN {
                     }
                 }
                 cout << "\n";
-                }
-                for (int i = 0; i < side; i++){
+            }
+            for (int i = 0; i < side; i++){
                 cout << "-----";
-                }   
-            }
+            }   
+        }
             
-            cout << "-" << endl;
+        cout << "-" << endl;
+    }
+
+
+    void printPath() {
+        cout << "Solution path: ";
+        for (const auto& pair : path) {
+            cout << pair.first << " -> ";
         }
-
-        void printNumbers() {
-            for (int num : numbers) {
-                cout << num << " ";
-            }
-        }
-
-        void printAdjacencyList() {
-            for (int i = 0; i < adj.size(); ++i) {
-                cout << "Vertex " << i << ": ";
-                for (int j = 0; j < adj[i].size(); ++j) {
-                    cout << adj[i][j] << " ";
-                }
-                cout << endl;
-            }
-        }
-
-        void printPath() {
-            for (const auto& pair : path) {
-                cout << pair.second << " -> ";
-            }
-
-            cout << endl;
-        }
-
-
+        cout << "Goal" << endl;
+    }
 };
 
-
-int main(){
+int main() {
     PuzzleN puzzle(9);
-
-
     puzzle.execute();
-    puzzle.printPath();
-
     return 0;
 }
