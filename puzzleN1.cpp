@@ -67,32 +67,34 @@ class PuzzleN {
 
             if (solvable) {
                 shufflePuzzle();
-                cout << "side: " << side*side << endl;
-                cout << "solvable? " << isSolvable(numbers) << endl;
+                findEmptySpace();
                 while (!isSolvable(numbers)) {
                     cout << "shuffling puzzle" << endl;
                     shufflePuzzle();
+                    findEmptySpace();
                     cout << "puzzle shuffled" << endl;
                 }
             } else {
                 shufflePuzzle();
             }
 
+            cout << "solvable? " << isSolvable(numbers) << endl;
+
             int index = 0;
             for (int i = 0; i < side; i++) {
                 vector<int> temp;
                 for (int j = 0; j < side; j++) {
                     temp.push_back(numbers[index]);
-                    if (numbers[index] == 0) {
-                        emptyRow = i;
-                        emptyCol = j;
-                    }
+                    // if (numbers[index] == 0) {
+                    //     emptyRow = i;
+                    //     emptyCol = j;
+                    // }
                     index++;
                 }
                 board[i] = temp;
             }
-            emptySpace = emptyCol + side*emptyRow;
-            //cout << emptyRow << emptyCol << emptySpace << endl;
+            //emptySpace = emptyCol + side*emptyRow;
+            cout << emptyRow << emptyCol << emptySpace << endl;
 
             //Creation of n0
             vCounter = 1;
@@ -135,7 +137,7 @@ class PuzzleN {
              if (side*side % 2 == 1) {
                 return (invCount % 2 == 0); //Odd
             } else {
-                return ((emptyRow % 2 == 1) == (invCount % 2 == 0)); //Even
+                return (invCount % 2 == 0); //Even
             }
 
             return false;
@@ -146,6 +148,20 @@ class PuzzleN {
             mt19937 g(rd());
 
             shuffle(numbers.begin(), numbers.end(), g);
+        }
+
+        void findEmptySpace() {
+            int index = 0;
+            for (int i = 0; i < side; i++) {
+                for (int j = 0; j < side; j++) {
+                    if (numbers[index] == 0) {
+                        emptyRow = i;
+                        emptyCol = j;
+                    }
+                    index++;
+                }
+            }
+            emptySpace = emptyCol + side*emptyRow;
         }
 
         void expand() {
@@ -161,7 +177,7 @@ class PuzzleN {
                 bool nums = ht.get(vectorToString(numbers));
                 cout << "node already exists: " << nums << endl;
 
-                if (move(dir) &&  nums != true) {
+                if (move(dir)) {
                     vertices.emplace_back(vCounter, numbers, heuristicF(numbers), vertices[curr].g + 1);
                     if (adj.size() <= vCounter) {
                         adj.resize(vCounter + 1);
@@ -172,7 +188,7 @@ class PuzzleN {
                         pq.push(make_pair(vCounter, vertices.back().h + vertices.back().g));
                     }
 
-                    printNode(vertices[vCounter]);
+                    //printNode(vertices[vCounter]);
 
                     vCounter++;
 
@@ -289,10 +305,9 @@ class PuzzleN {
             cout << "heuristics: " << vertices[curr].h << endl;
             while(!pq.empty() && vertices[curr].h != 0 && k > 0) {
                 //cout << vertices[curr].id << endl;
-                //printNode(vertices[curr]);
+                printNode(vertices[curr]);
                 //printBoard();
                 expand();
-                printAdjacencyList();
                 choice();
                 //printBoard();
                 k--;
@@ -413,7 +428,7 @@ int main(){
     cout << "hi" << endl;
 
     puzzle.execute();
-    
+    puzzle.printAdjacencyList();
     puzzle.printPath();
 
     return 0;
