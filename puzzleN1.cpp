@@ -134,7 +134,7 @@ class PuzzleN {
                 }
             }
 
-             if (side*side % 2 == 1) {
+            if (side*side % 2 == 1 || side*side % 2 == 0) {
                 return (invCount % 2 == 0); //Odd
             } else {
                 return (invCount % 2 == 0); //Even
@@ -175,7 +175,7 @@ class PuzzleN {
                 int tempEmptySpace = emptySpace;
 
                 bool nums = ht.get(vectorToString(numbers));
-                cout << "node already exists: " << nums << endl;
+                //cout << "node already exists: " << nums << endl;
 
                 if (move(dir)) {
                     vertices.emplace_back(vCounter, numbers, heuristicF(numbers), vertices[curr].g + 1);
@@ -300,12 +300,12 @@ class PuzzleN {
         }
 
         void execute() {
-            int k = 10; //362880
+            int k = 10000; //362880
             
             cout << "heuristics: " << vertices[curr].h << endl;
             while(!pq.empty() && vertices[curr].h != 0 && k > 0) {
                 //cout << vertices[curr].id << endl;
-                printNode(vertices[curr]);
+                //printNode(vertices[curr]);
                 //printBoard();
                 expand();
                 choice();
@@ -316,8 +316,8 @@ class PuzzleN {
             printBoard();
             cout << "heuristics: " << vertices[curr].h << endl;
             printNumbers();
-            cout << "queue empty? " << pq.empty() << endl;
-            cout << "Nodes created: " << vertices.size() << endl;
+            cout << endl << "queue empty? " << pq.empty() << endl;
+            //cout << "Nodes created: " << vertices.size() << endl;
             cout << "steps left: " << k << endl; 
             cout << "End of program." << endl;
         }
@@ -423,13 +423,13 @@ class PuzzleN {
 
 
 int main(){
-    cout << "hello" << endl;
-    PuzzleN puzzle(4);
-    cout << "hi" << endl;
+    //cout << "hello" << endl;
+    PuzzleN puzzle(9);
+    //cout << "hi" << endl;
 
     puzzle.execute();
-    puzzle.printAdjacencyList();
-    puzzle.printPath();
+    //puzzle.printAdjacencyList();
+    //puzzle.printPath();
 
     return 0;
 }
