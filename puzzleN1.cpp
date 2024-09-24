@@ -45,7 +45,9 @@ class PuzzleN {
         int emptyRow, emptyCol, emptySpace, newSpace, side, size, newRow, newCol, boardSize, curr; //important variables
         vector<int> numbers; // Vector of numbers in the actual board
         vector<int> tState; // Vector of numbers Terminal State
-        vector<pair<int, int>> path; //child, curr
+        vector<pair<int, int>> road; //child, curr
+        vector<int> path;
+        int current;
         bool solvable = false;
         int edge = 1;
 
@@ -70,7 +72,11 @@ class PuzzleN {
                 findEmptySpace();
                 while (!isSolvable(numbers)) {
                     cout << "shuffling puzzle" << endl;
-                    shufflePuzzle();
+                    int i = 0, j = 1;
+                    while (numbers[i] == 0) i++;
+                    j = i + 1;
+                    while (numbers[j] == 0) j++;
+                    swap(numbers[i], numbers[j]);
                     findEmptySpace();
                     cout << "puzzle shuffled" << endl;
                 }
@@ -126,18 +132,26 @@ class PuzzleN {
 
         bool isSolvable(const vector<int>& v) {
             int invCount = 0;
-            for (int i = 0; i < side*side; i++) {
-                for (int j = i + 1; j < side*side; j++) {
-                    if (v[i] != 0 && v[j] != 0 && v[i] > v[j]) {
-                        invCount++;
+            for (int i = 0; i < v.size() - 1; i++) {
+                for (int j = i + 1; j < v.size(); j++) {
+                    if (side == 2) {
+                        // For 2x2, count inversions including the blank tile (0)
+                        if (v[i] > v[j]) {
+                            invCount++;
+                        }
+                    } else {
+                        // For larger puzzles, count inversions only for non-zero tiles
+                        if (v[i] && v[j] && v[i] > v[j]) {
+                            invCount++;
+                        }
                     }
                 }
             }
 
-             if (side*side % 2 == 1) {
+            if (side*side % 2 == 1) {
                 return (invCount % 2 == 0); //Odd
             } else {
-                return (invCount % 2 == 0); //Even
+                return (invCount % 2 == 1); //Even
             }
 
             return false;
@@ -168,6 +182,7 @@ class PuzzleN {
             vector<string> directions = {"up", "down", "left", "right"};
             vector<size_t> newVertices;
             int parent = vCounter-1;
+            //cout << "Expanding node: " << curr << endl;
             for (const auto& dir : directions) {
                 vector<int> tempNumbers = numbers;
                 int tempEmptyRow = emptyRow;
@@ -175,8 +190,7 @@ class PuzzleN {
                 int tempEmptySpace = emptySpace;
 
                 bool nums = ht.get(vectorToString(numbers));
-                cout << "node already exists: " << nums << endl;
-
+                //cout << "node already exists: " << nums << endl;
                 if (move(dir)) {
                     vertices.emplace_back(vCounter, numbers, heuristicF(numbers), vertices[curr].g + 1);
                     if (adj.size() <= vCounter) {
@@ -249,43 +263,59 @@ class PuzzleN {
         void choice(){
             //cout << "(" << pq.top().first << ", " << pq.top().second << ") " << endl;
 
-             while (!pq.empty()) {
-                int child = pq.top().first;
-                pq.pop(); 
+            while (!pq.empty()) {
+                for (int neighbor : adj[curr]) {
+                
+                    int child = pq.top().first;
+                    //cout << "child: " << child << endl;
+                    pq.pop(); 
 
-                if (visited[child]) {
-                    continue;
-                }
-
-                string nodeD = vectorToString(vertices[child].data);
-                if (ht.get(nodeD)) {
-                    //cout << "Found data in node: " << child << endl;
-                    visited[child] = true;
-                    continue; 
-                }
-
-                // Suitable node
-                path.push_back(make_pair(child, curr));
-                curr = child;
-                numbers = vertices[child].data;
-                ht.insert(nodeD, true);
-
-                // Create board 
-                int index = 0;
-                for (int i = 0; i < side; i++) {
-                    vector<int> temp;
-                    for (int j = 0; j < side; j++) {
-                        temp.push_back(numbers[index]);
-                        if (numbers[index] == 0) {
-                            emptyRow = i;
-                            emptyCol = j;
-                        }
-                        index++;
+                    if (visited[child]) {
+                        continue;
                     }
-                    board[i] = temp;
-                }
-                emptySpace = emptyCol + side*emptyRow;
 
+                    string nodeD = vectorToString(vertices[child].data);
+                    // if (ht.get(nodeD)) {
+                    //     //cout << "Found data in node: " << child << endl;
+                    //     visited[child] = true;
+                    //     continue; 
+                    // }
+
+                    // Suitable node
+                    // if (child == neighbor) {
+                    //     continue;
+                    // }
+
+                    visited[child] = true;
+                    road.push_back(make_pair(child, curr));
+                    curr = child;
+                    numbers = vertices[child].data;
+                    ht.insert(nodeD, true);
+
+                        // Create board 
+                    int index = 0;
+                    for (int i = 0; i < side; i++) {
+                        vector<int> temp;
+                        for (int j = 0; j < side; j++) {
+                            temp.push_back(numbers[index]);
+                            if (numbers[index] == 0) {
+                                emptyRow = i;
+                                emptyCol = j;
+                                }
+                            index++;
+                            }
+                            board[i] = temp;
+                        }
+                        emptySpace = emptyCol + side*emptyRow;
+
+                        if (vertices[child].h == 0){
+                            break;
+                        }
+
+                        break;
+                }
+
+                    
                 return;
             }
         }
@@ -300,12 +330,12 @@ class PuzzleN {
         }
 
         void execute() {
-            int k = 10; //362880
+            int k = 50; //362880
             
             cout << "heuristics: " << vertices[curr].h << endl;
             while(!pq.empty() && vertices[curr].h != 0 && k > 0) {
-                //cout << vertices[curr].id << endl;
-                printNode(vertices[curr]);
+                //cout << "curr: " << vertices[curr].id << endl;
+                //printNode(vertices[curr]);
                 //printBoard();
                 expand();
                 choice();
@@ -320,6 +350,49 @@ class PuzzleN {
             cout << "Nodes created: " << vertices.size() << endl;
             cout << "steps left: " << k << endl; 
             cout << "End of program." << endl;
+        }
+
+        void find_path() {
+            if (road.empty()) {
+                cout << "Road is empty. Path cannot be constructed." << endl;
+                return;
+            }
+
+            // Start from the terminal node
+            //current = road.back().first;
+            
+            cout << "Starting find_path with goal node = " << curr << endl;
+
+            while (curr != 0) {  
+                path.push_back(curr);
+                //cout << "Adding " << curr << " to path" << endl;
+                
+                // Find the parent 
+                bool found = false;
+                for (const auto& pair : road) {
+                    if (pair.first == curr) {
+                        curr = pair.second;  
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (!found) {
+                    cout << "Error: Could not find parent for node " << curr << endl;
+                    return;
+                }
+            }
+            
+            // Add the start node
+            path.push_back(0);
+
+            reverse(path.begin(), path.end());
+        }
+
+        bool contains(const vector<pair<int, int>>& v, int key) {
+            return find_if(v.begin(), v.end(),
+                                [key](const pair<int, int>& element) { return element.first == key; })
+                != v.end();
         }
 
         void emptyQueue() {
@@ -412,24 +485,36 @@ class PuzzleN {
         }
 
         void printPath() {
-            for (const auto& pair : path) {
-                cout << pair.second << " -> ";
+            find_path();
+            cout << "Path : ";
+            for (const auto& st : path) {
+                cout << st << " -> ";
             }
-
             cout << endl;
         }
 
+        void printPathwNode() {
+            for (const auto& st : path) {
+                printNode(vertices[st]);
+                cout << endl;
+            }
+            cout << endl;
+        }
+
+        void deleteAllNodes() {
+        }
 };
 
 
 int main(){
-    cout << "hello" << endl;
-    PuzzleN puzzle(4);
-    cout << "hi" << endl;
+    //cout << "hello" << endl;
+    PuzzleN puzzle(9);
+    //cout << "hi" << endl;
 
     puzzle.execute();
-    puzzle.printAdjacencyList();
+    //puzzle.printAdjacencyList();
     puzzle.printPath();
+    //puzzle.printPathwNode();
 
     return 0;
 }
