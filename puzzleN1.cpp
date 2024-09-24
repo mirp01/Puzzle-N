@@ -69,16 +69,16 @@ class PuzzleN {
                 shufflePuzzle();
                 findEmptySpace();
                 while (!isSolvable(numbers)) {
-                    cout << "shuffling puzzle" << endl;
+                    //cout << "shuffling puzzle" << endl;
                     shufflePuzzle();
                     findEmptySpace();
-                    cout << "puzzle shuffled" << endl;
+                    //cout << "puzzle shuffled" << endl;
                 }
             } else {
                 shufflePuzzle();
             }
 
-            cout << "solvable? " << isSolvable(numbers) << endl;
+            //cout << "solvable? " << isSolvable(numbers) << endl;
 
             int index = 0;
             for (int i = 0; i < side; i++) {
@@ -94,7 +94,7 @@ class PuzzleN {
                 board[i] = temp;
             }
             //emptySpace = emptyCol + side*emptyRow;
-            cout << emptyRow << emptyCol << emptySpace << endl;
+            //cout << emptyRow << emptyCol << emptySpace << endl;
 
             //Creation of n0
             vCounter = 1;
@@ -416,6 +416,8 @@ class PuzzleN {
                 cout << pair.second << " -> ";
             }
 
+            cout << path.back().first << endl;
+
             cout << endl;
         }
 
@@ -424,7 +426,7 @@ class PuzzleN {
 
 int main(){
     //cout << "hello" << endl;
-    PuzzleN puzzle(9);
+    PuzzleN puzzle(4);
     //cout << "hi" << endl;
 
     puzzle.execute();
